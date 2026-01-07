@@ -1,1 +1,301 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>体重記録アプリ</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      max-width: 420px;
+    }
 
+    h2, h3 {
+      margin-bottom: 6px;
+    }
+
+    .dt-row,
+    .weight-area {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+
+    .dt-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    input {
+      width: 70px;
+      text-align: center;
+      font-size: 16px;
+    }
+
+    button {
+      font-size: 14px;
+      padding: 4px 8px;
+    }
+
+    ul {
+      padding-left: 18px;
+    }
+
+    li {
+      margin-bottom: 4px;
+      font-size: 14px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 現在日時（常に現在） -->
+  <h2 id="datetime"></h2>
+
+  <!-- 日時入力 -->
+  <h3>日時入力</h3>
+
+  <!-- 年 -->
+  <div class="dt-row">
+    <div class="dt-item">
+      <button class="dt-minus" data-type="year">−</button>
+      <input type="number" id="year">
+      <button class="dt-plus" data-type="year">＋</button>
+      <span>年</span>
+    </div>
+  </div>
+
+  <!-- 月・日 -->
+  <div class="dt-row">
+    <div class="dt-item">
+      <button class="dt-minus" data-type="month">−</button>
+      <input type="number" id="month">
+      <button class="dt-plus" data-type="month">＋</button>
+      <span>月</span>
+    </div>
+
+    <div class="dt-item">
+      <button class="dt-minus" data-type="day">−</button>
+      <input type="number" id="day">
+      <button class="dt-plus" data-type="day">＋</button>
+      <span>日</span>
+    </div>
+  </div>
+
+  <!-- 時・分 -->
+  <div class="dt-row">
+    <div class="dt-item">
+      <button class="dt-minus" data-type="hour">−</button>
+      <input type="number" id="hour">
+      <button class="dt-plus" data-type="hour">＋</button>
+      <span>時</span>
+    </div>
+
+    <div class="dt-item">
+      <button class="dt-minus" data-type="minute">−</button>
+      <input type="number" id="minute">
+      <button class="dt-plus" data-type="minute">＋</button>
+      <span>分</span>
+    </div>
+  </div>
+
+  <!-- 体重 -->
+  <h3>体重</h3>
+  <div class="weight-area">
+    <button id="minusWeight">−</button>
+    <input type="number" id="weight" step="0.1">
+    <button id="plusWeight">＋</button>
+    <span>kg</span>
+  </div>
+
+  <!-- 記録 -->
+  <button id="save">記録</button>
+
+  <!-- 操作 -->
+  <div class="actions">
+    <button id="exportCsv">CSV出力</button>
+    <button id="clearRecords">履歴クリア</button>
+  </div>
+
+  <!-- 履歴 -->
+  <h3>記録履歴</h3>
+  <ul id="recordList"></ul>
+
+  <script>
+    // =====================
+    // 現在日時表示（常時更新）
+    // =====================
+    function updateDateTime() {
+      const now = new Date();
+      const formatted =
+        `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()} ` +
+        `${now.getHours()}:${now.getMinutes().toString().padStart(2, "0")}`;
+      document.getElementById("datetime").textContent =
+        `現在日時：${formatted}`;
+    }
+    updateDateTime();
+    setInterval(updateDateTime, 60 * 1000); // 1分ごと更新
+
+    // =====================
+    // 要素取得
+    // =====================
+    const yearInput = document.getElementById("year");
+    const monthInput = document.getElementById("month");
+    const dayInput = document.getElementById("day");
+    const hourInput = document.getElementById("hour");
+    const minuteInput = document.getElementById("minute");
+
+    const weightInput = document.getElementById("weight");
+    const recordList = document.getElementById("recordList");
+
+    // =====================
+    // デフォルト日時＝現在
+    // =====================
+    function setNowToInputs() {
+      const now = new Date();
+      yearInput.value = now.getFullYear();
+      monthInput.value = now.getMonth() + 1;
+      dayInput.value = now.getDate();
+      hourInput.value = now.getHours();
+      minuteInput.value = now.getMinutes();
+    }
+    setNowToInputs();
+
+    // =====================
+    // 前回体重
+    // =====================
+    const lastWeight = localStorage.getItem("lastWeight");
+    if (lastWeight) weightInput.value = lastWeight;
+
+    // =====================
+    // 体重 ±
+    // =====================
+    document.getElementById("plusWeight").addEventListener("click", () => {
+      const v = parseFloat(weightInput.value) || 0;
+      weightInput.value = (v + 0.1).toFixed(1);
+    });
+
+    document.getElementById("minusWeight").addEventListener("click", () => {
+      const v = parseFloat(weightInput.value) || 0;
+      weightInput.value = (v - 0.1).toFixed(1);
+    });
+
+    // =====================
+    // 日時操作
+    // =====================
+    function getDateFromInputs() {
+      return new Date(
+        yearInput.value,
+        monthInput.value - 1,
+        dayInput.value,
+        hourInput.value,
+        minuteInput.value
+      );
+    }
+
+    function setInputsFromDate(d) {
+      yearInput.value = d.getFullYear();
+      monthInput.value = d.getMonth() + 1;
+      dayInput.value = d.getDate();
+      hourInput.value = d.getHours();
+      minuteInput.value = d.getMinutes();
+    }
+
+    document.querySelectorAll(".dt-plus").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const d = getDateFromInputs();
+        if (btn.dataset.type === "year") d.setFullYear(d.getFullYear() + 1);
+        if (btn.dataset.type === "month") d.setMonth(d.getMonth() + 1);
+        if (btn.dataset.type === "day") d.setDate(d.getDate() + 1);
+        if (btn.dataset.type === "hour") d.setHours(d.getHours() + 1);
+        if (btn.dataset.type === "minute") d.setMinutes(d.getMinutes() + 1);
+        setInputsFromDate(d);
+      });
+    });
+
+    document.querySelectorAll(".dt-minus").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const d = getDateFromInputs();
+        if (btn.dataset.type === "year") d.setFullYear(d.getFullYear() - 1);
+        if (btn.dataset.type === "month") d.setMonth(d.getMonth() - 1);
+        if (btn.dataset.type === "day") d.setDate(d.getDate() - 1);
+        if (btn.dataset.type === "hour") d.setHours(d.getHours() - 1);
+        if (btn.dataset.type === "minute") d.setMinutes(d.getMinutes() - 1);
+        setInputsFromDate(d);
+      });
+    });
+
+    // =====================
+    // 履歴描画
+    // =====================
+    function renderRecords() {
+      recordList.innerHTML = "";
+      const records = JSON.parse(localStorage.getItem("records")) || [];
+      records.forEach(r => {
+        const li = document.createElement("li");
+        li.textContent = `${r.datetime}  体重: ${r.weight}kg`;
+        recordList.appendChild(li);
+      });
+    }
+
+    // =====================
+    // 記録保存
+    // =====================
+    document.getElementById("save").addEventListener("click", () => {
+      const weight = parseFloat(weightInput.value);
+      if (isNaN(weight)) return;
+
+      const d = getDateFromInputs();
+      const formatted =
+        `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ` +
+        `${d.getHours()}:${d.getMinutes().toString().padStart(2, "0")}`;
+
+      const records = JSON.parse(localStorage.getItem("records")) || [];
+      records.push({ datetime: formatted, weight });
+
+      localStorage.setItem("records", JSON.stringify(records));
+      localStorage.setItem("lastWeight", weight);
+      renderRecords();
+    });
+
+    // =====================
+    // CSV出力
+    // =====================
+    document.getElementById("exportCsv").addEventListener("click", () => {
+      const records = JSON.parse(localStorage.getItem("records")) || [];
+      if (!records.length) return;
+
+      let csv = "datetime,weight\n";
+      records.forEach(r => csv += `${r.datetime},${r.weight}\n`);
+
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "weight_records.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    // =====================
+    // 履歴クリア
+    // =====================
+    document.getElementById("clearRecords").addEventListener("click", () => {
+      if (!confirm("履歴をすべて削除しますか？")) return;
+      localStorage.removeItem("records");
+      renderRecords();
+    });
+
+    renderRecords();
+  </script>
+
+</body>
+</html>
